@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# Local ComfyUI/Eagle state
+comfyui-eagle-loader/eagle_gallery_ui_state.json
+
+# Logs and local config
+*.log
+.env
+.env.*
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

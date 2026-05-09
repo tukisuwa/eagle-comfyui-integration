@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ComfyUI Bridge</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #1a1a1a;
+            color: #e0e0e0;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            font-size: 24px;
+            margin-bottom: 20px;
+            color: #ffffff;
+        }
+        
+        .status {
+            background: #2d2d2d;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding: 8px;
+            background: #1a1a1a;
+            border-radius: 4px;
+        }
+        
+        .status-label {
+            color: #999;
+        }
+        
+        .status-value {
+            font-weight: 600;
+            color: #4CAF50;
+        }
+        
+        .status-value.inactive {
+            color: #f44336;
+        }
+        
+        .config-section {
+            background: #2d2d2d;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .config-label {
+            display: block;
+            margin-bottom: 8px;
+            color: #ccc;
+            font-size: 14px;
+        }
+        
+        input {
+            width: 100%;
+            padding: 10px;
+            background: #1a1a1a;
+            border: 1px solid #444;
+            border-radius: 4px;
+            color: #e0e0e0;
+            font-size: 14px;
+        }
+        
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            width: 100%;
+            margin-top: 10px;
+        }
+        
+        button:hover {
+            background: #45a049;
+        }
+        
+        button:disabled {
+            background: #555;
+            cursor: not-allowed;
+        }
+        
+        .log {
+            background: #0a0a0a;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+        
+        .log-entry {
+            margin-bottom: 4px;
+            color: #999;
+        }
+        
+        .log-entry.success {
+            color: #4CAF50;
+        }
+        
+        .log-entry.error {
+            color: #f44336;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🦅 Eagle-ComfyUI Bridge</h1>
+        
+        <div class="status">
+            <div class="status-item">
+                <span class="status-label">Server Status:</span>
+                <span class="status-value" id="server-status">Starting...</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Port:</span>
+                <span class="status-value" id="server-port">-</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Requests Served:</span>
+                <span class="status-value" id="request-count">0</span>
+            </div>
+        </div>
+        
+        <div class="config-section">
+            <h3 style="margin-bottom: 15px; color: #fff;">Configuration</h3>
+            <label class="config-label">
+                Bridge Server Port
+                <input type="number" id="port-input" value="8765" min="1024" max="65535">
+            </label>
+            <label class="config-label" style="margin-top: 10px;">
+                Bind Address
+                <select id="bind-input" style="width: 100%; padding: 10px; background: #1a1a1a; border: 1px solid #444; border-radius: 4px; color: #e0e0e0; font-size: 14px;">
+                    <option value="127.0.0.1">127.0.0.1 (localhost only)</option>
+                    <option value="0.0.0.0">0.0.0.0 (LAN/WAN - requires token)</option>
+                </select>
+            </label>
+            <label class="config-label" style="margin-top: 10px;">
+                Access Token (required if bind is 0.0.0.0)
+                <input type="password" id="token-input" value="" placeholder="Set a strong token..." />
+            </label>
+            <button id="restart-btn">Restart Server</button>
+        </div>
+        
+        <div class="config-section">
+            <h3 style="margin-bottom: 15px; color: #fff;">Activity Log</h3>
+            <div class="log" id="activity-log">
+                <div class="log-entry">Waiting for server to start...</div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="server.js"></script>
+</body>
+</html>
