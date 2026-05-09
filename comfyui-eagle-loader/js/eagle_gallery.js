@@ -332,13 +332,25 @@ function installEagleNodePreview(node) {
 
     node.__updateEaglePreview = updatePreview;
     const watchedWidgets = ["search_query", "tags_filter", "folder_filter", "min_rating", "selected_index", "selected_item_json", "index_overflow", "index_mode"];
+    const clearsSelectedItem = new Set(["search_query", "tags_filter", "folder_filter", "min_rating", "selected_index"]);
+    const lastWidgetValues = new Map(watchedWidgets.map(name => [name, getWidget(node, name)?.value]));
     for (const name of watchedWidgets) {
         const widget = getWidget(node, name);
         if (!widget || widget.__eaglePreviewPatched) continue;
         widget.__eaglePreviewPatched = true;
         const oldCallback = widget.callback;
         widget.callback = function (...args) {
+            const previousValue = lastWidgetValues.get(name);
             const result = oldCallback?.apply(this, args);
+            const nextValue = this.value;
+            lastWidgetValues.set(name, nextValue);
+            if (clearsSelectedItem.has(name) && previousValue !== nextValue) {
+                const selectedWidget = getWidget(node, "selected_item_json");
+                if (selectedWidget?.value) {
+                    selectedWidget.value = "";
+                    selectedWidget.callback?.(selectedWidget.value);
+                }
+            }
             updatePreview();
             return result;
         };
