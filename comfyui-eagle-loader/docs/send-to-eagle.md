@@ -14,10 +14,19 @@ This quick node exposes the common settings:
 - `annotation`: item annotation.
 - `tags_csv`: comma-separated tags.
 - `eagle_meta_json`: metadata from another node.
-- `comfyui_public_url`: ComfyUI URL visible to Eagle.
+- `send_method`: transfer method. Use `addFromPath (local)` for the normal local setup.
+- `comfyui_public_url`: only used by `addFromURL (pull)`.
+- `eagle_native_url`: Eagle's normal API URL. Usually `http://127.0.0.1:41595`.
+- `eagle_token`: only needed when the Eagle API uses a token.
 - `file_format`: `png`, `jpeg`, or `webp`.
 
 For a simple workflow, connect `images` and optionally set `eagle_folder` and `tags_csv`.
+
+Think of the transfer methods as a priority order:
+
+- `addFromPath (local)`: recommended when Eagle and ComfyUI run on the same machine. It sends Eagle the saved local image path.
+- `addFromURL (pull)`: use this when Eagle and ComfyUI are in different environments and Eagle can access the ComfyUI URL.
+- `addFromBase64 (push)`: fallback when URL pull is not available. It can be slower for large images.
 
 ## Eagle Simple Send Info
 
@@ -38,6 +47,8 @@ Use the full send node when you need:
 
 ## comfyui_public_url
 
+`comfyui_public_url` is needed when using `addFromURL (pull)`.
+
 This is the URL Eagle uses to fetch images from ComfyUI.
 
 If Eagle and ComfyUI run on the same machine, this usually works:
@@ -47,4 +58,3 @@ http://127.0.0.1:8188
 ```
 
 If they are on different machines, use a URL that Eagle can access.
-

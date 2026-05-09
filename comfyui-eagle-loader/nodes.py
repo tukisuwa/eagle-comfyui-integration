@@ -1393,7 +1393,7 @@ class EagleSendToEagle:
                 "file_format": (["png", "jpeg", "webp"],),
                 "lossless_webp": ("BOOLEAN", {"default": True, "label_on": "lossless", "label_off": "lossy"}),
                 "quality": ("INT", {"default": 95, "min": 1, "max": 100}),
-                "auto_base64_max_mb": ("INT", {"default": 16, "min": 1, "max": 512}),
+                "auto_base64_max_mb": ("INT", {"default": 1, "min": 1, "max": 512}),
                 "save_prompt_tags": ("BOOLEAN", {"default": True}),
                 "save_negative_prompt_tags": ("BOOLEAN", {"default": False}),
                 "extra_tags_csv": ("STRING", {"default": "source:comfyui", "multiline": False}),
@@ -1456,8 +1456,12 @@ class EagleSendToEagle:
             elif isinstance(parsed_meta, list) and index < len(parsed_meta) and isinstance(parsed_meta[index], dict):
                 meta_for_image = parsed_meta[index]
 
-            image_tensor = img_tensors[index] if batch_size > 1 else img_tensors
+            image_tensor = img_tensors[index] if hasattr(img_tensors, "shape") and len(img_tensors.shape) >= 4 else img_tensors
             image_array = image_tensor.cpu().numpy() if hasattr(image_tensor, "cpu") else np.asarray(image_tensor)
+            while image_array.ndim > 3 and image_array.shape[0] == 1:
+                image_array = image_array[0]
+            if image_array.ndim != 3:
+                raise ValueError(f"Expected image tensor with shape HxWxC, got {tuple(image_array.shape)}")
             image_uint8 = np.clip(255.0 * image_array, 0, 255).astype(np.uint8)
             img = Image.fromarray(image_uint8)
 
@@ -1540,7 +1544,7 @@ class EagleSendToEagle:
 
             method_for_this = send_method
             if send_target != "Eagle Bridge Plugin":
-                method_for_this = "addFromURL (pull)"
+                method_for_this = "addFromPath (native)"
             else:
                 method_for_this = _select_send_method(send_method, file_path, auto_base64_max_mb)
 
@@ -1579,7 +1583,7 @@ class EagleSendToEagle:
                             "tags": tags,
                             "folder": folder_value,
                         }
-                        resp = requests.post(f"{bridge_base}/api/add_from_base64", headers=headers, json=payload, timeout=20)
+                        resp = requests.post(f"{bridge_base}/api/add_from_base64", headers=headers, json=payload, timeout=150)
                     else:
                         payload = {
                             "url": file_url,
@@ -1589,7 +1593,7 @@ class EagleSendToEagle:
                             "tags": tags,
                             "folder": folder_value,
                         }
-                        resp = requests.post(f"{bridge_base}/api/add_from_url", headers=headers, json=payload, timeout=20)
+                        resp = requests.post(f"{bridge_base}/api/add_from_url", headers=headers, json=payload, timeout=150)
                     resp.raise_for_status()
                     data = resp.json()
                     results.append({"ok": True, "file_path": file_path, "file_url": file_url, "eagle_item_id": data.get("itemId")})
@@ -1598,7 +1602,7 @@ class EagleSendToEagle:
                     folder_id = _eagle_native_find_or_create_folder(native_base, eagle_token or None, folder_value)
 
                     payload = {
-                        "url": file_url,
+                        "path": file_path,
                         "name": name_value or file_name,
                         "website": website_value,
                         "annotation": annotation,
@@ -1608,7 +1612,10 @@ class EagleSendToEagle:
                         payload["folderId"] = folder_id
                     if eagle_token:
                         payload["token"] = eagle_token
-                    resp = requests.post(f"{native_base}/api/item/addFromURL", json=payload, timeout=20)
+                    native_headers = {"Content-Type": "application/json"}
+                    if eagle_token:
+                        native_headers["Authorization"] = f"Bearer {eagle_token}"
+                    resp = requests.post(f"{native_base}/api/item/addFromPath", headers=native_headers, json=payload, timeout=150)
                     resp.raise_for_status()
                     data = resp.json()
                     results.append({"ok": True, "file_path": file_path, "file_url": file_url, "eagle_item_id": (data.get("data") or {}).get("id", None) or data.get("data")})
@@ -1633,7 +1640,10 @@ class EagleQuickSendToEagle:
                 "annotation": ("STRING", {"default": "", "multiline": True}),
                 "tags_csv": ("STRING", {"default": "source:comfyui", "multiline": False, "placeholder": "tag1,tag2,tag3"}),
                 "eagle_meta_json": ("STRING", {"default": "", "multiline": True, "forceInput": True}),
+                "send_method": (["addFromPath (local)", "addFromURL (pull)", "addFromBase64 (push)"],),
                 "comfyui_public_url": ("STRING", {"default": "http://127.0.0.1:8188", "multiline": False}),
+                "eagle_native_url": ("STRING", {"default": "http://127.0.0.1:41595", "multiline": False}),
+                "eagle_token": ("STRING", {"default": "", "multiline": False}),
                 "file_format": (["png", "jpeg", "webp"],),
             },
             "hidden": {"prompt": "PROMPT", "extra_pnginfo": "EXTRA_PNGINFO"},
@@ -1653,7 +1663,10 @@ class EagleQuickSendToEagle:
         annotation="",
         tags_csv="source:comfyui",
         eagle_meta_json="",
+        send_method="addFromPath (local)",
         comfyui_public_url="http://127.0.0.1:8188",
+        eagle_native_url="http://127.0.0.1:41595",
+        eagle_token="",
         file_format="png",
         prompt=None,
         extra_pnginfo=None,
@@ -1679,18 +1692,24 @@ class EagleQuickSendToEagle:
         if tags:
             meta["tags"] = tags
 
+        use_native_path = str(send_method or "").startswith("addFromPath")
+        target = "Eagle Native API" if use_native_path else "Eagle Bridge Plugin"
+        method = "addFromURL (pull)" if use_native_path else send_method
+        base_url = eagle_native_url if use_native_path else EAGLE_API_BASE
+        token = eagle_token if use_native_path else EAGLE_BRIDGE_TOKEN
+
         return EagleSendToEagle().send(
             images=images,
-            send_target="Eagle Bridge Plugin",
-            send_method="Auto (size-based)",
-            eagle_base_url=EAGLE_API_BASE,
-            eagle_token=EAGLE_BRIDGE_TOKEN,
+            send_target=target,
+            send_method=method,
+            eagle_base_url=base_url,
+            eagle_token=token,
             eagle_folder="",
             comfyui_public_url=comfyui_public_url,
             file_format=file_format,
             lossless_webp=True,
             quality=95,
-            auto_base64_max_mb=16,
+            auto_base64_max_mb=1,
             save_prompt_tags=False,
             save_negative_prompt_tags=False,
             extra_tags_csv="",

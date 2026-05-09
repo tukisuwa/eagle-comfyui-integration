@@ -47,6 +47,16 @@ function runEagleItemReadLocked(fn) {
     return run;
 }
 
+function withTimeout(promise, ms, label) {
+    let timer = null;
+    const timeout = new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`${label || 'operation'} timed out after ${ms}ms`)), ms);
+    });
+    return Promise.race([promise, timeout]).finally(() => {
+        if (timer) clearTimeout(timer);
+    });
+}
+
 async function getItemByIdStrict(itemId, debugLabel = "") {
     const expectedId = String(itemId);
     let lastItem = null;
@@ -521,7 +531,13 @@ async function handleAddFromUrl(req, res, query) {
     if (tags.length) options.tags = tags;
     if (folderId) options.folders = [folderId];
 
-    const itemId = await eagle.item.addFromURL(imageUrl, options);
+    addLog(`[Add from URL] start name="${name || ''}" folder="${folderValue || ''}" tags=${tags.length}`, 'info');
+    const itemId = await withTimeout(
+        eagle.item.addFromURL(imageUrl, options),
+        120000,
+        'eagle.item.addFromURL'
+    );
+    addLog(`[Add from URL] done itemId=${itemId || ''} name="${name || ''}"`, 'success');
 
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ ok: true, itemId }));
@@ -559,7 +575,14 @@ async function handleAddFromBase64(req, res, query) {
     if (tags.length) options.tags = tags;
     if (folderId) options.folders = [folderId];
 
-    const itemId = await eagle.item.addFromBase64(base64, options);
+    const approxBytes = Math.floor(String(base64).length * 3 / 4);
+    addLog(`[Add from Base64] start name="${name || ''}" folder="${folderValue || ''}" tags=${tags.length} approx_bytes=${approxBytes}`, 'info');
+    const itemId = await withTimeout(
+        eagle.item.addFromBase64(base64, options),
+        120000,
+        'eagle.item.addFromBase64'
+    );
+    addLog(`[Add from Base64] done itemId=${itemId || ''} name="${name || ''}"`, 'success');
 
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ ok: true, itemId }));

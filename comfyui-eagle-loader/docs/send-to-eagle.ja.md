@@ -16,10 +16,19 @@ ComfyUI で生成した画像を Eagle に保存したい場合は、送信用�
 - `annotation`: Eagle item の注釈。
 - `tags_csv`: カンマ区切りタグ。
 - `eagle_meta_json`: 別ノードで作った送信用 metadata。
-- `comfyui_public_url`: Eagle から見える ComfyUI の URL。
+- `send_method`: 送信方式。通常は `addFromPath (local)` を使います。
+- `comfyui_public_url`: `addFromURL (pull)` のときだけ使います。
+- `eagle_native_url`: Eagle の通常 API URL。通常は `http://127.0.0.1:41595` です。
+- `eagle_token`: Eagle API に token を設定している場合だけ入力します。
 - `file_format`: `png`、`jpeg`、`webp`。
 
 通常は `images` をつなぎ、必要なら `eagle_folder` と `tags_csv` を設定するだけで使えます。
+
+送信方式は優先順位で考えると分かりやすいです。
+
+- `addFromPath (local)`: Eagle と ComfyUI が同じ PC で動いている場合におすすめです。ComfyUI が保存した画像ファイルの path を Eagle に渡します。
+- `addFromURL (pull)`: Eagle と ComfyUI が別環境で、Eagle から ComfyUI の URL を読める場合に使います。
+- `addFromBase64 (push)`: URL で取りに行けない場合の fallback です。大きい画像では遅くなることがあります。
 
 ## Eagle Simple Send Info
 
@@ -51,6 +60,8 @@ ComfyUI で生成した画像を Eagle に保存したい場合は、送信用�
 
 ## comfyui_public_url について
 
+`comfyui_public_url` は `addFromURL (pull)` 方式を使う場合に必要です。
+
 Eagle が ComfyUI の画像を取りに行くための URL です。
 
 Eagle と ComfyUI が同じ PC で動いている場合は、通常は次で問題ありません。
@@ -60,4 +71,3 @@ http://127.0.0.1:8188
 ```
 
 別の PC で動かしている場合は、Eagle からアクセスできる ComfyUI の URL を指定してください。
-

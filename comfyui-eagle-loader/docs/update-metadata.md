@@ -34,7 +34,6 @@ Use the full update node when you need:
 - Replace annotation.
 - Toggle star.
 - Clear folder.
-- Use legacy compatibility inputs.
+- Keep using older workflows without rewiring their inputs.
 
 The first output is also `metadata_json`, so it can be passed to later Eagle metadata nodes.
-

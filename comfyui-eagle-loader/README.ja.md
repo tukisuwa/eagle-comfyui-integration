@@ -42,7 +42,6 @@ pip install -r requirements.txt
 ```bash
 export EAGLE_BRIDGE_API_BASE="http://127.0.0.1:8765/api"
 export EAGLE_BRIDGE_TOKEN="bridge側で設定したtoken"
-export EAGLE_LOADER_DEBUG="0"
 ```
 
 ## ドキュメント
