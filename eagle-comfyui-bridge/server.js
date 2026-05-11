@@ -317,6 +317,7 @@ async function handleSearch(req, res, query) {
         'thumbnailPath',
         'size',
         'star',
+        'folders',
         'modifiedAt'
     ];
     
@@ -337,6 +338,7 @@ async function handleSearch(req, res, query) {
         thumbnailPath: item.thumbnailPath,
         size: item.size,
         star: item.star,
+        folders: item.folders,
         modifiedAt: item.modifiedAt
     }));
     
@@ -422,6 +424,74 @@ function readJsonBody(req, maxBytes = 2 * 1024 * 1024) {
     });
 }
 
+async function getAllFoldersFlat() {
+    const rawFolders = await eagle.folder.getAll();
+    const folders = Array.isArray(rawFolders)
+        ? rawFolders
+        : (Array.isArray(rawFolders?.folders)
+            ? rawFolders.folders
+            : (Array.isArray(rawFolders?.data) ? rawFolders.data : []));
+    const flat = [];
+    const seen = new Set();
+
+    function folderIdOf(folder) {
+        return folder?.id ?? folder?.folderId ?? folder?.folder_id ?? folder?.uuid ?? folder?._id ?? "";
+    }
+
+    function folderNameOf(folder) {
+        return folder?.name ?? folder?.folderName ?? folder?.folder_name ?? folder?.title ?? folder?.label ?? "";
+    }
+
+    function folderParentOf(folder) {
+        return folder?.parent ?? folder?.parentId ?? folder?.parent_id ?? folder?.pid ?? "";
+    }
+
+    function visit(folder, parentId = null, depth = 0) {
+        const rawId = folderIdOf(folder);
+        if (!folder || rawId === undefined || rawId === null || rawId === "") return;
+        const id = String(rawId);
+        if (seen.has(id)) return;
+        seen.add(id);
+
+        const rawParent = folderParentOf(folder);
+        const normalized = {
+            ...folder,
+            id,
+            name: String(folderNameOf(folder) || id),
+            parent: rawParent === undefined || rawParent === null || rawParent === "" ? "" : String(rawParent),
+        };
+        if (!normalized.parent && parentId) {
+            normalized.parent = String(parentId);
+        }
+        normalized.depth = depth;
+        flat.push(normalized);
+
+        const children = Array.isArray(folder.children)
+            ? folder.children
+            : (Array.isArray(folder.folders) ? folder.folders : []);
+        for (const child of children) {
+            visit(child, id, depth + 1);
+        }
+    }
+
+    for (const folder of folders || []) {
+        const parent = folderParentOf(folder);
+        visit(folder, parent || null, Number.isFinite(Number(folder?.depth)) ? Number(folder.depth) : 0);
+    }
+
+    return flat;
+}
+
+function folderParentMatches(folder, parentId) {
+    const folderParent = folder?.parent === undefined || folder?.parent === null || folder?.parent === ""
+        ? null
+        : String(folder.parent);
+    const expectedParent = parentId === undefined || parentId === null || parentId === ""
+        ? null
+        : String(parentId);
+    return folderParent === expectedParent;
+}
+
 async function resolveFolderId(folderValue) {
     if (!folderValue) return "";
     const folderIdOrPath = String(folderValue).trim();
@@ -455,16 +525,19 @@ async function resolveFolderId(folderValue) {
     if (parts.length === 0) return "";
 
     let parentId = null;
+    const allFolders = await getAllFoldersFlat();
     for (const name of parts) {
-        const all = await eagle.folder.getAll();
-        const existing = (all || []).find(f => f && f.name === name && ((f.parent || null) === parentId));
+        const existing = (allFolders || []).find(f => f && f.name === name && folderParentMatches(f, parentId));
         if (existing && existing.id) {
             parentId = existing.id;
             continue;
         }
 
         const created = await eagle.folder.create(parentId ? { name, parent: parentId } : { name });
-        parentId = created?.id || parentId;
+        if (created?.id) {
+            allFolders.push({ ...created, name: created.name || name, parent: parentId });
+            parentId = created.id;
+        }
     }
 
     return parentId || "";
@@ -496,9 +569,9 @@ async function resolveExistingFolderId(folderValue) {
     if (parts.length === 0) return "";
 
     let parentId = null;
+    const allFolders = await getAllFoldersFlat();
     for (const name of parts) {
-        const all = await eagle.folder.getAll();
-        const existing = (all || []).find(f => f && f.name === name && ((f.parent || null) === parentId));
+        const existing = (allFolders || []).find(f => f && f.name === name && folderParentMatches(f, parentId));
         if (!existing || !existing.id) return "";
         parentId = existing.id;
     }
@@ -1510,7 +1583,7 @@ async function handleGetImage(req, res, query) {
 
 // フォルダ一覧取得API
 async function handleGetFolders(req, res) {
-    const folders = await eagle.folder.getAll();
+    const folders = await getAllFoldersFlat();
 
     const byId = new Map();
     for (const folder of folders || []) {
@@ -1549,6 +1622,7 @@ async function handleGetFolders(req, res) {
         name: f.name,
         description: f.description,
         parent: f.parent,
+        depth: Number.isFinite(Number(f.depth)) ? Number(f.depth) : 0,
         path: pathFor(f.id),
     })).sort((a, b) => String(a.path || '').localeCompare(String(b.path || '')));
     

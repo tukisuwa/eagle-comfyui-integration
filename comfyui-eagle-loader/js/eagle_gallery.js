@@ -735,6 +735,24 @@ async function showEagleGallery(node) {
         `;
     }
 
+    function folderIdsForItem(item) {
+        const rawFolders = item?.folders ?? item?.folderIds ?? item?.folder_ids ?? item?.folderId ?? item?.folder_id ?? item?.folder;
+        if (Array.isArray(rawFolders)) {
+            return rawFolders
+                .map(folder => typeof folder === "object" ? (folder?.id ?? folder?.folderId ?? folder?.folder_id) : folder)
+                .filter(value => value !== undefined && value !== null && String(value).trim() !== "")
+                .map(value => String(value));
+        }
+        if (rawFolders === undefined || rawFolders === null || String(rawFolders).trim() === "") return [];
+        return [String(rawFolders)];
+    }
+
+    function folderLabelForId(folderId) {
+        const id = String(folderId || "");
+        const folder = folderOptions.find(f => String(f.id) === id);
+        return folder?.path || folder?.name || id;
+    }
+
     function updateDetailsPanel(item) {
         if (!detailsPanel) return;
         if (!item) {
@@ -760,12 +778,9 @@ async function showEagleGallery(node) {
         const starButtons = [0, 1, 2, 3, 4, 5].map(value => `
             <button data-eagle-star-value="${value}" style="width:32px; height:30px; background:${value === currentStar ? "#365b2e" : "#202020"}; border:1px solid ${value === currentStar ? "#5f984d" : "#383838"}; color:#eee; border-radius:6px; cursor:pointer;">${value}</button>
         `).join("");
-        const currentFolders = Array.isArray(item.folders) ? item.folders.map(v => String(v)) : [];
+        const currentFolders = folderIdsForItem(item);
         const currentFolderText = currentFolders.length
-            ? currentFolders.map(fid => {
-                const folder = folderOptions.find(f => String(f.id) === fid);
-                return folder?.path || folder?.name || fid;
-            }).join(", ")
+            ? currentFolders.map(folderLabelForId).join(", ")
             : "No folder";
         const folderOptionsHtml = [
             `<option value="">No folder</option>`,
