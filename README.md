@@ -9,6 +9,13 @@ This repository contains the two components needed to connect Eagle and ComfyUI.
 
 Install both folders. The ComfyUI nodes need the Eagle bridge plugin to be running.
 
+## Changelog
+
+### 2026-05-11
+
+- Added nested Eagle folder support. Folder pickers and move controls can now show and select child and grandchild folders as `Parent/Child/Grandchild` paths.
+- Added the selected image's current folder to the browser details panel.
+
 ## What You Can Do
 
 - Browse Eagle images from ComfyUI.
