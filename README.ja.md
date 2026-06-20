@@ -84,6 +84,8 @@ Eagle plugin:
 
 - [Eagle-ComfyUI Bridge README](eagle-comfyui-bridge/README.ja.md)
 - [English: Eagle-ComfyUI Bridge README](eagle-comfyui-bridge/README.md)
+- [Eagle API 利用時の注意点](eagle-api-usage-notes.ja.md)
+- [English: Eagle API Usage Notes](eagle-api-usage-notes.md)
 
 ## 設定
 
